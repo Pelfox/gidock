@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 
-	s "github.com/Masterminds/squirrel"
 	"github.com/Pelfox/gidock/internal"
 	"github.com/Pelfox/gidock/internal/controllers"
 	"github.com/Pelfox/gidock/internal/repositories"
@@ -26,16 +25,21 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to connect to database")
 	}
 
-	psql := s.StatementBuilder.PlaceholderFormat(s.Dollar)
-
-	projectRepository := repositories.NewProjectRepository(psql, dbPool)
+	projectRepository := repositories.NewProjectRepository(dbPool)
 	projectService := services.NewProjectService(projectRepository)
 	projectController := controllers.NewProjectController(projectService)
+
+	serviceRepository := repositories.NewServiceRepository(dbPool)
+	serviceService := services.NewServiceService(serviceRepository)
+	serviceController := controllers.NewServiceController(serviceService)
 
 	router := gin.New()
 
 	projectGroup := router.Group("/projects")
 	projectGroup.POST("/", projectController.CreateProject)
+
+	serviceGroup := router.Group("/services")
+	serviceGroup.POST("/", serviceController.CreateService)
 
 	if err := router.Run(); err != nil {
 		log.Fatal().Err(err).Msg("failed to start server")
