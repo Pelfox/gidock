@@ -21,3 +21,9 @@ type CreateServiceRequest struct {
 type CreateServiceResponse struct {
 	models.Service
 }
+
+// UpdateServiceFields is an internal struct for updating service's fields. It
+// shouldn't be used outside (i.e. HTTP requests, etc.)
+type UpdateServiceFields struct {
+	ContainerID *string
+}
