@@ -7,6 +7,7 @@ import (
 	"github.com/Pelfox/gidock/internal/controllers"
 	"github.com/Pelfox/gidock/internal/repositories"
 	"github.com/Pelfox/gidock/internal/services"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/moby/moby/client"
 	"github.com/rs/zerolog"
@@ -40,9 +41,18 @@ func main() {
 	serviceController := controllers.NewServiceController(serviceService)
 
 	router := gin.New()
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: false,
+	}))
 
 	projectGroup := router.Group("/projects")
 	projectGroup.POST("/", projectController.CreateProject)
+	projectGroup.GET("/", projectController.ListProjects)
+	projectGroup.GET("/:id", projectController.GetProjectByID)
 
 	serviceGroup := router.Group("/services")
 	serviceGroup.GET("/", serviceController.ListServices)
