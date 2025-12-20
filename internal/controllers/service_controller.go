@@ -3,9 +3,11 @@ package controllers
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/Pelfox/gidock/internal/dto"
 	"github.com/Pelfox/gidock/internal/services"
+	"github.com/Pelfox/gidock/pkg"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
@@ -107,4 +109,38 @@ func (c *ServiceController) GetServiceStatus(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, status)
+}
+
+func (c *ServiceController) GetServiceLogs(ctx *gin.Context) {
+	id, err := uuid.Parse(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": "The provided service ID is invalid."})
+		return
+	}
+
+	logsChannel, err := c.serviceService.GetServiceLogs(ctx.Request.Context(), id)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get service logs")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to get service logs."})
+		return
+	}
+
+	conn := pkg.NewSSEConn(ctx, 10*time.Second)
+	conn.SetupHeaders()
+	conn.StartHeartbeats()
+	defer conn.Close()
+
+	for {
+		select {
+		case line, ok := <-logsChannel:
+			if !ok {
+				return
+			}
+			if err := conn.SendEvent("log", line); err != nil {
+				log.Error().Err(err).Msg("failed to send log event")
+			}
+		case <-ctx.Request.Context().Done():
+			return
+		}
+	}
 }

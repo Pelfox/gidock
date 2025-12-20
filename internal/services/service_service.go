@@ -8,8 +8,10 @@ import (
 	"github.com/Pelfox/gidock/internal/dto"
 	"github.com/Pelfox/gidock/internal/models"
 	"github.com/Pelfox/gidock/internal/repositories"
+	"github.com/Pelfox/gidock/pkg"
 	"github.com/containerd/errdefs"
 	"github.com/google/uuid"
+	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/client"
@@ -48,8 +50,7 @@ func (s *ServiceService) CreateService(request dto.CreateServiceRequest) (*model
 }
 
 func (s *ServiceService) pullServiceImage(ctx context.Context, service *models.Service) error {
-	imageName := fmt.Sprintf("%s:latest", service.Image)
-	_, err := s.dockerClient.ImageInspect(ctx, imageName)
+	_, err := s.dockerClient.ImageInspect(ctx, service.Image)
 
 	// image already exists - no need to pull
 	if err == nil {
@@ -61,11 +62,11 @@ func (s *ServiceService) pullServiceImage(ctx context.Context, service *models.S
 	}
 
 	log.Info().Str("service_id", service.ID.String()).
-		Str("image", imageName).
+		Str("image", service.Image).
 		Msg("pulling image for service")
 
 	pullOptions := client.ImagePullOptions{} // TODO: support for auth
-	pullResult, err := s.dockerClient.ImagePull(ctx, imageName, pullOptions)
+	pullResult, err := s.dockerClient.ImagePull(ctx, service.Image, pullOptions)
 	if err != nil {
 		return err
 	}
@@ -232,4 +233,51 @@ func (s *ServiceService) GetServiceStatus(ctx context.Context, id uuid.UUID) (*d
 		StartedAt: inspectResult.Container.State.StartedAt,
 		ExitCode:  inspectResult.Container.State.ExitCode,
 	}, nil
+}
+
+func (s *ServiceService) GetServiceLogs(ctx context.Context, id uuid.UUID) (<-chan pkg.LogEntry, error) {
+	service, err := s.serviceRepository.GetServiceByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if service.ContainerID == nil {
+		return nil, errors.New("service has no container attached to it")
+	}
+
+	logsOptions := client.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Timestamps: true,
+		Follow:     true,
+		Tail:       "all",
+		Details:    true,
+	}
+	logsResult, err := s.dockerClient.ContainerLogs(ctx, *service.ContainerID, logsOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	channel := make(chan pkg.LogEntry)
+	writer := pkg.NewLogsWriter(channel)
+
+	go func() {
+		defer logsResult.Close()
+		defer close(channel)
+
+		if _, err = stdcopy.StdCopy(writer, writer, logsResult); err != nil && !errors.Is(err, context.Canceled) {
+			log.Error().Err(err).
+				Str("service_id", id.String()).
+				Str("container_id", *service.ContainerID).
+				Msg("error copying logs")
+		}
+		if err := writer.FlushRemaining(); err != nil && !errors.Is(err, context.Canceled) {
+			log.Error().Err(err).
+				Str("service_id", id.String()).
+				Str("container_id", *service.ContainerID).
+				Msg("error flushing remaining logs")
+		}
+	}()
+
+	return channel, nil
 }
