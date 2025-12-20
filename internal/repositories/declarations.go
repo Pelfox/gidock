@@ -1,5 +1,6 @@
 package repositories
 
-import s "github.com/Masterminds/squirrel"
+import "github.com/Masterminds/squirrel"
 
-var sq = s.StatementBuilder.PlaceholderFormat(s.Dollar)
+// sq specifies the placeholder format for SQL queries using dollar signs.
+var sq = squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)

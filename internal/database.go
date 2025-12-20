@@ -7,6 +7,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// CreatePool creates and configures a new PostgreSQL connection pool using
+// `pgxpool.Pool`.
 func CreatePool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	config, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
@@ -14,6 +16,7 @@ func CreatePool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	}
 
 	// setting up pool config
+	// TODO: make this settings configurable
 	config.MinConns = 2
 	config.MaxConns = 10
 	config.MaxConnIdleTime = 5 * time.Minute

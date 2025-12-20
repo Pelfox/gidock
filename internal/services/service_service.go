@@ -8,6 +8,7 @@ import (
 	"github.com/Pelfox/gidock/internal/dto"
 	"github.com/Pelfox/gidock/internal/models"
 	"github.com/Pelfox/gidock/internal/repositories"
+	"github.com/Pelfox/gidock/internal/repositories/commands"
 	"github.com/Pelfox/gidock/pkg"
 	"github.com/containerd/errdefs"
 	"github.com/google/uuid"
@@ -167,7 +168,7 @@ func (s *ServiceService) StartService(ctx context.Context, id uuid.UUID, forcePu
 		return nil, err
 	}
 
-	updatedService, err := s.serviceRepository.UpdateServiceByID(service.ID, dto.UpdateServiceFields{ContainerID: containerID})
+	updatedService, err := s.serviceRepository.UpdateServiceByID(service.ID, commands.UpdateServiceCommand{ContainerID: containerID})
 	if err != nil {
 		return nil, err
 	}
@@ -203,6 +204,14 @@ func (s *ServiceService) StopService(ctx context.Context, id uuid.UUID, kill boo
 	}
 
 	return s.stopServiceContainer(ctx, *service.ContainerID, kill)
+}
+
+func (s *ServiceService) GetService(id uuid.UUID) (*models.Service, error) {
+	service, err := s.serviceRepository.GetServiceByID(id)
+	if err != nil {
+		return nil, err
+	}
+	return service, nil
 }
 
 func (s *ServiceService) ListServices() ([]models.Service, error) {

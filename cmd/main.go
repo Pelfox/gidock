@@ -57,6 +57,7 @@ func main() {
 	serviceGroup := router.Group("/services")
 	serviceGroup.GET("/", serviceController.ListServices)
 	serviceGroup.POST("/", serviceController.CreateService)
+	serviceGroup.GET("/:id", serviceController.GetService)
 	serviceGroup.POST("/:id/start", serviceController.StartService)
 	serviceGroup.POST("/:id/stop", serviceController.StopService)
 	serviceGroup.GET("/:id/status", serviceController.GetServiceStatus)
