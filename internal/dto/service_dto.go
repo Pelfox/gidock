@@ -36,9 +36,8 @@ type ServiceStatusResponse struct {
 	State container.ContainerState `json:"state"`
 	// StartedAt is the timestamp when the container started (if running).
 	StartedAt string `json:"started_at"`
-
-	// TODO: add `exited_at`
-
+	// FinishedAt is the timestamp when the container stopped (if stopped).
+	FinishedAt string `json:"finished_at"`
 	// ExitCode is the exit code if the container has stopped.
 	ExitCode int `json:"exit_code"`
 }

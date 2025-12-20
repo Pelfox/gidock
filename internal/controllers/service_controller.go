@@ -84,14 +84,14 @@ func (c *ServiceController) StopService(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "OK."})
 }
 
-func (c *ServiceController) GetService(ctx *gin.Context) {
+func (c *ServiceController) GetServiceByID(ctx *gin.Context) {
 	id, err := uuid.Parse(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"message": "The provided service ID is invalid."})
 		return
 	}
 
-	service, err := c.serviceService.GetService(id)
+	service, err := c.serviceService.GetServiceByID(id)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get service")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to get service."})

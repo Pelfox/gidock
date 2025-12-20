@@ -32,12 +32,14 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to create Docker client")
 	}
 
+	dockerService := services.NewDockerService(dockerClient)
+
 	projectRepository := repositories.NewProjectRepository(dbPool)
 	projectService := services.NewProjectService(projectRepository)
 	projectController := controllers.NewProjectController(projectService)
 
 	serviceRepository := repositories.NewServiceRepository(dbPool)
-	serviceService := services.NewServiceService(serviceRepository, dockerClient)
+	serviceService := services.NewServiceService(serviceRepository, dockerService)
 	serviceController := controllers.NewServiceController(serviceService)
 
 	router := gin.New()
@@ -57,7 +59,7 @@ func main() {
 	serviceGroup := router.Group("/services")
 	serviceGroup.GET("/", serviceController.ListServices)
 	serviceGroup.POST("/", serviceController.CreateService)
-	serviceGroup.GET("/:id", serviceController.GetService)
+	serviceGroup.GET("/:id", serviceController.GetServiceByID)
 	serviceGroup.POST("/:id/start", serviceController.StartService)
 	serviceGroup.POST("/:id/stop", serviceController.StopService)
 	serviceGroup.GET("/:id/status", serviceController.GetServiceStatus)
