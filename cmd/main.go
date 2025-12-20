@@ -59,6 +59,7 @@ func main() {
 	serviceGroup.POST("/", serviceController.CreateService)
 	serviceGroup.POST("/:id/start", serviceController.StartService)
 	serviceGroup.POST("/:id/stop", serviceController.StopService)
+	serviceGroup.GET("/:id/status", serviceController.GetServiceStatus)
 
 	if err := router.Run(); err != nil {
 		log.Fatal().Err(err).Msg("failed to start server")

@@ -211,3 +211,25 @@ func (s *ServiceService) ListServices() ([]models.Service, error) {
 	}
 	return services, nil
 }
+
+func (s *ServiceService) GetServiceStatus(ctx context.Context, id uuid.UUID) (*dto.ServiceStatusResponse, error) {
+	service, err := s.serviceRepository.GetServiceByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if service.ContainerID == nil {
+		return nil, errors.New("service has no container attached to it")
+	}
+
+	inspectResult, err := s.dockerClient.ContainerInspect(ctx, *service.ContainerID, client.ContainerInspectOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.ServiceStatusResponse{
+		State:     inspectResult.Container.State.Status,
+		StartedAt: inspectResult.Container.State.StartedAt,
+		ExitCode:  inspectResult.Container.State.ExitCode,
+	}, nil
+}

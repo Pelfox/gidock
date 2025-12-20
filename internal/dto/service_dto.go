@@ -3,6 +3,7 @@ package dto
 import (
 	"github.com/Pelfox/gidock/internal/models"
 	"github.com/google/uuid"
+	"github.com/moby/moby/api/types/container"
 )
 
 type CreateServiceRequest struct {
@@ -26,4 +27,10 @@ type CreateServiceResponse struct {
 // shouldn't be used outside (i.e. HTTP requests, etc.)
 type UpdateServiceFields struct {
 	ContainerID *string
+}
+
+type ServiceStatusResponse struct {
+	State     container.ContainerState `json:"state"`
+	StartedAt string                   `json:"started_at"`
+	ExitCode  int                      `json:"exit_code"`
 }
