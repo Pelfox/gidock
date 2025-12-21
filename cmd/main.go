@@ -52,18 +52,28 @@ func main() {
 	}))
 
 	projectGroup := router.Group("/projects")
-	projectGroup.POST("/", projectController.CreateProject)
-	projectGroup.GET("/", projectController.ListProjects)
-	projectGroup.GET("/:id", projectController.GetProjectByID)
+	projectGroup.POST("/", projectController.Create)
+	projectGroup.GET("/", projectController.ListAll)
+	projectGroup.GET("/:id", projectController.GetByID)
+	// TODO: generic updates for a project (e.g., rename, description, etc.)
+	// TODO: delete project (with cascading delete of services)
+	// TODO: get overall status of project (e.g., are all services running?)
 
 	serviceGroup := router.Group("/services")
-	serviceGroup.GET("/", serviceController.ListServices)
-	serviceGroup.POST("/", serviceController.CreateService)
-	serviceGroup.GET("/:id", serviceController.GetServiceByID)
-	serviceGroup.POST("/:id/start", serviceController.StartService)
-	serviceGroup.POST("/:id/stop", serviceController.StopService)
-	serviceGroup.GET("/:id/status", serviceController.GetServiceStatus)
-	serviceGroup.GET("/:id/logs", serviceController.GetServiceLogs)
+	serviceGroup.GET("/", serviceController.ListAll)
+	serviceGroup.POST("/", serviceController.Create) // TODO: review required
+	serviceGroup.GET("/:id", serviceController.GetByID)
+	serviceGroup.POST("/:id/start", serviceController.Start)
+	serviceGroup.POST("/:id/stop", serviceController.Stop)
+	serviceGroup.GET("/:id/status", serviceController.GetStatus)
+	serviceGroup.GET("/:id/logs", serviceController.StreamLogs)
+	// TODO: batch service status report
+	// TODO: pause/unpause service
+	// TODO: update service
+	// TODO: delete service
+	// TODO: restart service
+	// TODO: get service health
+	// TODO: get service container information
 
 	if err := router.Run(); err != nil {
 		log.Fatal().Err(err).Msg("failed to start server")

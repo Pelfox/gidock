@@ -12,3 +12,14 @@ type CreateProjectRequest struct {
 type CreateProjectResponse struct {
 	models.Project
 }
+
+// UpdateProjectRequest is the request payload for updating an existing project.
+type UpdateProjectRequest struct {
+	// Name is the new human-readable name for the project.
+	Name string `json:"name"`
+}
+
+// UpdateProjectResponse is the response payload after successfully updating a project.
+type UpdateProjectResponse struct {
+	models.Project
+}

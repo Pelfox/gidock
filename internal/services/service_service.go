@@ -12,6 +12,8 @@ import (
 	"github.com/google/uuid"
 )
 
+// TODO: add other methods (from Repository)
+
 type ServiceService struct {
 	serviceRepository *repositories.ServiceRepository
 	dockerService     *DockerService
@@ -27,48 +29,63 @@ func NewServiceService(
 	}
 }
 
-func (s *ServiceService) CreateService(request dto.CreateServiceRequest) (*models.Service, error) {
-	service, err := s.serviceRepository.CreateService(
-		request.ProjectID,
-		request.Name,
-		request.Image,
-		request.Environment,
-		request.Mounts,
-		request.Dependencies,
-		request.NetworkAccess,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return service, nil
+func (s *ServiceService) Create(
+	ctx context.Context,
+	request dto.CreateServiceRequest,
+) (*models.Service, error) {
+	return s.serviceRepository.Create(ctx, commands.CreateServiceCommand{
+		ProjectID:     request.ProjectID,
+		Name:          request.Name,
+		Image:         request.Image,
+		Environment:   request.Environment,
+		Mounts:        request.Mounts,
+		Dependencies:  request.Dependencies,
+		NetworkAccess: request.NetworkAccess,
+	})
 }
 
-func (s *ServiceService) StartService(ctx context.Context, id uuid.UUID, forcePull bool) (*models.Service, error) {
-	service, err := s.serviceRepository.GetServiceByID(id)
+func (s *ServiceService) GetByID(ctx context.Context, id uuid.UUID) (*models.Service, error) {
+	return s.serviceRepository.Get(ctx, commands.GetServiceCommand{ID: id})
+}
+
+func (s *ServiceService) ListAll(ctx context.Context) ([]models.Service, error) {
+	return s.serviceRepository.ListAll(ctx)
+}
+
+func (s *ServiceService) Start(ctx context.Context, id uuid.UUID, forcePull bool) (*models.Service, error) {
+	service, err := s.serviceRepository.Get(ctx, commands.GetServiceCommand{ID: id})
 	if err != nil {
 		return nil, err
 	}
 
-	startContainerID := service.ContainerID
+	// TODO: implement transaction boundary
+	var containerID *string
 
-	// this service is starting for the first time, pulling its image
+	// create a new container if this is the first start or if forcePull is enabled
 	if service.ContainerID == nil || forcePull {
 		if err := s.dockerService.PullServiceImage(ctx, service); err != nil {
 			return nil, err
 		}
-		containerID, err := s.dockerService.CreateServiceContainer(ctx, service)
+		containerID, err = s.dockerService.CreateServiceContainer(ctx, service)
 		if err != nil {
 			return nil, err
 		}
-		startContainerID = containerID
+	} else {
+		containerID = service.ContainerID
 	}
 
-	containerID, err := s.dockerService.StartServiceContainer(ctx, *startContainerID, service)
+	startedContainerID, err := s.dockerService.StartServiceContainer(ctx, *containerID, service)
 	if err != nil {
 		return nil, err
 	}
 
-	updatedService, err := s.serviceRepository.UpdateServiceByID(service.ID, commands.UpdateServiceCommand{ContainerID: containerID})
+	updatedService, err := s.serviceRepository.Update(
+		ctx,
+		commands.UpdateServiceCommand{
+			ID:          id,
+			ContainerID: startedContainerID,
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -76,35 +93,20 @@ func (s *ServiceService) StartService(ctx context.Context, id uuid.UUID, forcePu
 	return updatedService, nil
 }
 
-func (s *ServiceService) StopService(ctx context.Context, id uuid.UUID, kill bool) error {
-	service, err := s.serviceRepository.GetServiceByID(id)
+func (s *ServiceService) Stop(ctx context.Context, id uuid.UUID, kill bool) error {
+	service, err := s.serviceRepository.Get(ctx, commands.GetServiceCommand{ID: id})
 	if err != nil {
 		return err
 	}
 	if service.ContainerID == nil {
 		return internal.ErrNoContainer
 	}
+	// TODO: implement transaction boundary
 	return s.dockerService.StopContainer(ctx, *service.ContainerID, kill)
 }
 
-func (s *ServiceService) GetServiceByID(id uuid.UUID) (*models.Service, error) {
-	service, err := s.serviceRepository.GetServiceByID(id)
-	if err != nil {
-		return nil, err
-	}
-	return service, nil
-}
-
-func (s *ServiceService) ListServices() ([]models.Service, error) {
-	services, err := s.serviceRepository.ListServices()
-	if err != nil {
-		return nil, err
-	}
-	return services, nil
-}
-
-func (s *ServiceService) GetServiceStatus(ctx context.Context, id uuid.UUID) (*dto.ServiceStatusResponse, error) {
-	service, err := s.serviceRepository.GetServiceByID(id)
+func (s *ServiceService) GetStatus(ctx context.Context, id uuid.UUID) (*dto.ServiceStatusResponse, error) {
+	service, err := s.serviceRepository.Get(ctx, commands.GetServiceCommand{ID: id})
 	if err != nil {
 		return nil, err
 	}
@@ -114,8 +116,8 @@ func (s *ServiceService) GetServiceStatus(ctx context.Context, id uuid.UUID) (*d
 	return s.dockerService.GetContainerStatus(ctx, *service.ContainerID)
 }
 
-func (s *ServiceService) GetServiceLogs(ctx context.Context, id uuid.UUID) (<-chan pkg.LogEntry, error) {
-	service, err := s.serviceRepository.GetServiceByID(id)
+func (s *ServiceService) StreamLogs(ctx context.Context, id uuid.UUID) (<-chan pkg.LogEntry, error) {
+	service, err := s.serviceRepository.Get(ctx, commands.GetServiceCommand{ID: id})
 	if err != nil {
 		return nil, err
 	}

@@ -13,6 +13,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// TODO: make all endpoints return data via response DTOs
+// TODO: handle errors correctly, returning appropriate status codes and messages
+// TODO: add other endpoints (from Service)
+
 type ServiceController struct {
 	serviceService *services.ServiceService
 }
@@ -21,14 +25,14 @@ func NewServiceController(serviceService *services.ServiceService) *ServiceContr
 	return &ServiceController{serviceService: serviceService}
 }
 
-func (c *ServiceController) CreateService(ctx *gin.Context) {
+func (c *ServiceController) Create(ctx *gin.Context) {
 	var request dto.CreateServiceRequest
 	if err := ctx.BindJSON(&request); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body."})
 		return
 	}
 
-	service, err := c.serviceService.CreateService(request)
+	service, err := c.serviceService.Create(ctx.Request.Context(), request)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to create service")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to create service."})
@@ -39,7 +43,34 @@ func (c *ServiceController) CreateService(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, response)
 }
 
-func (c *ServiceController) StartService(ctx *gin.Context) {
+func (c *ServiceController) GetByID(ctx *gin.Context) {
+	id, err := uuid.Parse(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": "The provided service ID is invalid."})
+		return
+	}
+
+	service, err := c.serviceService.GetByID(ctx.Request.Context(), id)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get service")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to get service."})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, service)
+}
+
+func (c *ServiceController) ListAll(ctx *gin.Context) {
+	servicesList, err := c.serviceService.ListAll(ctx.Request.Context())
+	if err != nil {
+		log.Error().Err(err).Msg("failed to list services")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to list services."})
+		return
+	}
+	ctx.JSON(http.StatusOK, servicesList)
+}
+
+func (c *ServiceController) Start(ctx *gin.Context) {
 	id, err := uuid.Parse(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"message": "The provided service ID is invalid."})
@@ -52,7 +83,7 @@ func (c *ServiceController) StartService(ctx *gin.Context) {
 		return
 	}
 
-	service, err := c.serviceService.StartService(ctx.Request.Context(), id, forcePull)
+	service, err := c.serviceService.Start(ctx.Request.Context(), id, forcePull)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to start service")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to start service."})
@@ -62,7 +93,7 @@ func (c *ServiceController) StartService(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, service)
 }
 
-func (c *ServiceController) StopService(ctx *gin.Context) {
+func (c *ServiceController) Stop(ctx *gin.Context) {
 	id, err := uuid.Parse(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"message": "The provided service ID is invalid."})
@@ -75,7 +106,7 @@ func (c *ServiceController) StopService(ctx *gin.Context) {
 		return
 	}
 
-	if err = c.serviceService.StopService(ctx.Request.Context(), id, kill); err != nil {
+	if err = c.serviceService.Stop(ctx.Request.Context(), id, kill); err != nil {
 		log.Error().Err(err).Msg("failed to stop service")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to stop service."})
 		return
@@ -84,41 +115,14 @@ func (c *ServiceController) StopService(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "OK."})
 }
 
-func (c *ServiceController) GetServiceByID(ctx *gin.Context) {
+func (c *ServiceController) GetStatus(ctx *gin.Context) {
 	id, err := uuid.Parse(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"message": "The provided service ID is invalid."})
 		return
 	}
 
-	service, err := c.serviceService.GetServiceByID(id)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to get service")
-		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to get service."})
-		return
-	}
-
-	ctx.JSON(http.StatusOK, service)
-}
-
-func (c *ServiceController) ListServices(ctx *gin.Context) {
-	servicesList, err := c.serviceService.ListServices()
-	if err != nil {
-		log.Error().Err(err).Msg("failed to list services")
-		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to list services."})
-		return
-	}
-	ctx.JSON(http.StatusOK, servicesList)
-}
-
-func (c *ServiceController) GetServiceStatus(ctx *gin.Context) {
-	id, err := uuid.Parse(ctx.Param("id"))
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": "The provided service ID is invalid."})
-		return
-	}
-
-	status, err := c.serviceService.GetServiceStatus(ctx.Request.Context(), id)
+	status, err := c.serviceService.GetStatus(ctx.Request.Context(), id)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get service status")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to get service status."})
@@ -128,14 +132,14 @@ func (c *ServiceController) GetServiceStatus(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, status)
 }
 
-func (c *ServiceController) GetServiceLogs(ctx *gin.Context) {
+func (c *ServiceController) StreamLogs(ctx *gin.Context) {
 	id, err := uuid.Parse(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"message": "The provided service ID is invalid."})
 		return
 	}
 
-	logsChannel, err := c.serviceService.GetServiceLogs(ctx.Request.Context(), id)
+	logsChannel, err := c.serviceService.StreamLogs(ctx.Request.Context(), id)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get service logs")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to get service logs."})
