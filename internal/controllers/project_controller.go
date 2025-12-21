@@ -13,7 +13,6 @@ import (
 
 // TODO: make all endpoints return data via response DTOs
 // TODO: handle errors correctly, returning appropriate status codes and messages
-// TODO: add other endpoints (from Service)
 
 type ProjectController struct {
 	projectService *services.ProjectService
@@ -63,6 +62,45 @@ func (c *ProjectController) GetByID(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, service)
+}
+
+func (c *ProjectController) UpdateByID(ctx *gin.Context) {
+	id, err := uuid.Parse(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": "The provided project ID is invalid."})
+		return
+	}
+
+	var request dto.UpdateProjectRequest
+	if err := ctx.BindJSON(&request); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body."})
+		return
+	}
+
+	project, err := c.projectService.Update(ctx.Request.Context(), id, request)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to update project")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to update project."})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, project)
+}
+
+func (c *ProjectController) DeleteByID(ctx *gin.Context) {
+	id, err := uuid.Parse(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": "The provided project ID is invalid."})
+		return
+	}
+
+	if err := c.projectService.Delete(ctx.Request.Context(), id); err != nil {
+		log.Error().Err(err).Msg("failed to delete project")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to delete project."})
+		return
+	}
+
+	ctx.Status(http.StatusNoContent)
 }
 
 func (c *ProjectController) ListAll(ctx *gin.Context) {

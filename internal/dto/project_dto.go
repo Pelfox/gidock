@@ -16,7 +16,7 @@ type CreateProjectResponse struct {
 // UpdateProjectRequest is the request payload for updating an existing project.
 type UpdateProjectRequest struct {
 	// Name is the new human-readable name for the project.
-	Name string `json:"name"`
+	Name *string `json:"name,omitempty"`
 }
 
 // UpdateProjectResponse is the response payload after successfully updating a project.

@@ -52,11 +52,12 @@ func main() {
 	}))
 
 	projectGroup := router.Group("/projects")
-	projectGroup.POST("/", projectController.Create)
 	projectGroup.GET("/", projectController.ListAll)
+	projectGroup.POST("/", projectController.Create)
 	projectGroup.GET("/:id", projectController.GetByID)
-	// TODO: generic updates for a project (e.g., rename, description, etc.)
-	// TODO: delete project (with cascading delete of services)
+	projectGroup.PATCH("/:id", projectController.UpdateByID)
+	projectGroup.DELETE("/:id", projectController.DeleteByID)
+
 	// TODO: get overall status of project (e.g., are all services running?)
 
 	serviceGroup := router.Group("/services")

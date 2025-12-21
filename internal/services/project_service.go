@@ -10,8 +10,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// TODO: add other methods (from Repository)
-
 type ProjectService struct {
 	projectRepository *repositories.ProjectRepository
 }
@@ -38,6 +36,21 @@ func (s *ProjectService) GetByID(
 		ID:              id,
 		IncludeServices: includeServices,
 	})
+}
+
+func (s *ProjectService) Update(
+	ctx context.Context,
+	id uuid.UUID,
+	request dto.UpdateProjectRequest,
+) (*models.Project, error) {
+	return s.projectRepository.Update(ctx, commands.UpdateProjectCommand{
+		ID:   id,
+		Name: request.Name,
+	})
+}
+
+func (s *ProjectService) Delete(ctx context.Context, id uuid.UUID) error {
+	return s.projectRepository.Delete(ctx, commands.DeleteProjectCommand{ID: id})
 }
 
 func (s *ProjectService) ListAll(ctx context.Context) ([]models.Project, error) {
